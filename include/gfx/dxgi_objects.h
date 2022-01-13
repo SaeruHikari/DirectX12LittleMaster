@@ -15,7 +15,8 @@ protected:
     void queryAllAdapters();
     bool debugLayerEnabled;
     struct IDXGIFactory6* pDXGIFactory = nullptr;
-    std::vector<struct IDXGIAdapter4*> mDXGIAdapters;    
+    std::vector<struct IDXGIAdapter4*> mDXGIAdapters;   
+    bool foundSoftwareAdapter; 
 };
 
 class LittleDXGIWindow : public LittleWindow

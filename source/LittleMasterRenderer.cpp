@@ -21,6 +21,8 @@ public:
             else
             {	
                 // 暂时什么都不做
+                // Sleep 1~2ms 来避免整个线程被while抢占
+                Sleep(1);
             }
         }
         // 如果收到了WM_QUIT消息，我们直接退出此函数

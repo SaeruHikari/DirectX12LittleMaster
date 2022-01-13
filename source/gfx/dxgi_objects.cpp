@@ -18,11 +18,9 @@ bool LittleDXGIInstance::Initialize()
     if (debugLayerEnabled) flags = DXGI_CREATE_FACTORY_DEBUG;
     if (SUCCEEDED(CreateDXGIFactory2(flags, IID_PPV_ARGS(&pDXGIFactory))))
     {
-        uint32_t gpuCount = 0;
-        bool foundSoftwareAdapter = false;
         queryAllAdapters();
         // If the only adapter we found is a software adapter, log error message for QA
-        if (!gpuCount && foundSoftwareAdapter)
+        if (!mDXGIAdapters.size() && foundSoftwareAdapter)
         {
             assert(0 && "The only available GPU has DXGI_ADAPTER_FLAG_SOFTWARE. Early exiting");
             return false;
@@ -49,9 +47,7 @@ bool LittleDXGIInstance::Destroy()
 void LittleDXGIInstance::queryAllAdapters()
 {
     IDXGIAdapter4* adapter = NULL;
-    // Find number of usable GPUs
     // Use DXGI6 interface which lets us specify gpu preference so we dont need to use NVOptimus or AMDPowerExpress
-    // exports
     for (UINT i = 0;
          pDXGIFactory->EnumAdapterByGpuPreference(i,
              DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
@@ -61,7 +57,12 @@ void LittleDXGIInstance::queryAllAdapters()
         DXGI_ADAPTER_DESC3 desc = { 0 };
         adapter->GetDesc3(&desc);
         std::wcout << desc.Description << std::endl;
-        mDXGIAdapters.push_back(adapter);
+        if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+        {
+            foundSoftwareAdapter = true;
+        }
+        else
+            mDXGIAdapters.push_back(adapter);
     }
 }
 
@@ -103,8 +104,8 @@ void LittleDXGIWindow::createDXGISwapChain()
     if (false)
     {    
         IDXGISwapChain1* swapchain;
-        auto bCreated = SUCCEEDED(
-            dxgiInstance->pDXGIFactory->CreateSwapChainForHwnd(NULL, hWnd, &chain_desc1, NULL, NULL, &swapchain));
+        auto bCreated = SUCCEEDED(dxgiInstance->pDXGIFactory->CreateSwapChainForHwnd(NULL,
+            hWnd, &chain_desc1, NULL, NULL, &swapchain));
         assert(bCreated && "Failed to Try to Create SwapChain!");
 
         auto bAssociation = SUCCEEDED(

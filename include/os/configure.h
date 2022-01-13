@@ -13,3 +13,5 @@
             p_var = NULL;       \
         }
 #endif
+
+#pragma warning (disable:4819)
