@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 
 class LittleObject
 {
@@ -14,7 +15,7 @@ class LittleFactory
 public:
     template<typename T, typename... Args>
     inline static T* Create(Args&&... args) {
-        auto res = new T(args...);
+        auto res = new T(std::forward<Args>(args)...);
         if(res->Initialize()) return res;
         else return nullptr;
     }
