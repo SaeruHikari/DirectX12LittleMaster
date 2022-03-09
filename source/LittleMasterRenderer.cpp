@@ -1,25 +1,22 @@
-#include "gfx/dxgi_objects.h"
+#include "gfx/gfx_objects.h"
 
-class LittleRendererWindow final : public LittleDXGIWindow
+class LittleRendererWindow final : public LittleGFXWindow
 {
 public:
-    LittleRendererWindow(const wchar_t* title, LittleDXGIInstance* dxgiInst, bool enableVsync)
-        :LittleDXGIWindow(title, dxgiInst, enableVsync){}
-
     void Run() override
     {
-        MSG msg = {0};
-        while(msg.message != WM_QUIT)
+        MSG msg = { 0 };
+        while (msg.message != WM_QUIT)
         {
             // 处理系统的消息
-            if(PeekMessage( &msg, 0, 0, 0, PM_REMOVE ))
+            if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
             {
-                TranslateMessage( &msg );
-                DispatchMessage( &msg );
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
             }
             // 在空闲时进行我们自己的逻辑
             else
-            {	
+            {
                 // 暂时什么都不做
                 // Sleep 1~2ms 来避免整个线程被while抢占
                 Sleep(1);
@@ -33,7 +30,7 @@ public:
 int main(void)
 {
     // 创建并初始化DXGI实例
-    auto dxgis = LittleFactory::Create<LittleDXGIInstance>(true);
+    auto dxgis = LittleFactory::Create<LittleGFXInstance>(true);
     // 创建并初始化窗口类
     auto window = LittleFactory::Create<LittleRendererWindow>(L"LittleMaster", dxgis, true);
     // 运行窗口类的循环

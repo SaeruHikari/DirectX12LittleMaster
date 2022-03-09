@@ -4,14 +4,11 @@
 #define DEFAULT_WIDTH 600
 #define DEFAULT_HEIGHT 600
 
-LittleWindow::LittleWindow(const wchar_t* title)
-    :title(title), width(DEFAULT_WIDTH), height(DEFAULT_HEIGHT)
+bool LittleWindow::Initialize(const wchar_t* title_)
 {
-
-}
-
-bool LittleWindow::Initialize()
-{
+    title = title_;
+    width = DEFAULT_WIDTH;
+    height = DEFAULT_HEIGHT;
     hWnd = createWin32Window(title.c_str());
     return hWnd;
 }

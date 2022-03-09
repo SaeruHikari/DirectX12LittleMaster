@@ -1,4 +1,4 @@
-#include "gfx/dxgi_objects.h"
+#include "gfx/gfx_objects.h"
 #include <vector>
 #include <dxgi1_6.h>
 #include <iostream>
@@ -6,14 +6,9 @@
 // 链接到dxgi库
 #pragma comment(lib, "dxgi.lib")
 
-LittleDXGIInstance::LittleDXGIInstance(bool enableDebugLayer)
-    :debugLayerEnabled(enableDebugLayer)
+bool LittleGFXInstance::Initialize(bool enableDebugLayer)
 {
-
-}
-
-bool LittleDXGIInstance::Initialize()
-{
+    debugLayerEnabled = enableDebugLayer;
     UINT flags = 0;
     if (debugLayerEnabled) flags = DXGI_CREATE_FACTORY_DEBUG;
     if (SUCCEEDED(CreateDXGIFactory2(flags, IID_PPV_ARGS(&pDXGIFactory))))
@@ -34,9 +29,9 @@ bool LittleDXGIInstance::Initialize()
     return true;
 }
 
-bool LittleDXGIInstance::Destroy()
+bool LittleGFXInstance::Destroy()
 {
-    for(auto iter : mDXGIAdapters)
+    for (auto iter : mDXGIAdapters)
     {
         SAFE_RELEASE(iter);
     }
@@ -44,7 +39,7 @@ bool LittleDXGIInstance::Destroy()
     return true;
 }
 
-void LittleDXGIInstance::queryAllAdapters()
+void LittleGFXInstance::queryAllAdapters()
 {
     IDXGIAdapter4* adapter = NULL;
     // Use DXGI6 interface which lets us specify gpu preference so we dont need to use NVOptimus or AMDPowerExpress
@@ -54,10 +49,10 @@ void LittleDXGIInstance::queryAllAdapters()
              IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
          i++)
     {
-        DXGI_ADAPTER_DESC3 desc = { 0 };
+        DXGI_ADAPTER_DESC3 desc = {};
         adapter->GetDesc3(&desc);
         std::wcout << desc.Description << std::endl;
-        if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+        if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
         {
             foundSoftwareAdapter = true;
         }
@@ -66,23 +61,23 @@ void LittleDXGIInstance::queryAllAdapters()
     }
 }
 
-bool LittleDXGIWindow::Initialize()
+bool LittleGFXWindow::Initialize(const wchar_t* title, LittleGFXInstance* dxgiInst, bool enableVsync)
 {
-    auto succeed = LittleWindow::Initialize();
+    auto succeed = LittleWindow::Initialize(title);
     createDXGISwapChain();
     return succeed;
 }
 
-bool LittleDXGIWindow::Destroy()
+bool LittleGFXWindow::Destroy()
 {
     auto succeed = LittleWindow::Destroy();
     SAFE_RELEASE(pSwapChain);
     return succeed;
 }
 
-void LittleDXGIWindow::createDXGISwapChain()
+void LittleGFXWindow::createDXGISwapChain()
 {
-    DXGI_SWAP_CHAIN_DESC1 chain_desc1 = {0};
+    DXGI_SWAP_CHAIN_DESC1 chain_desc1 = { 0 };
     chain_desc1.Width = width;
     chain_desc1.Height = height;
     // https://docs.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_swap_chain_desc1
@@ -96,13 +91,13 @@ void LittleDXGIWindow::createDXGISwapChain()
     chain_desc1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // for better performance.
     chain_desc1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
     chain_desc1.Flags = 0;
-    
+
     BOOL allowTearing = FALSE;
     chain_desc1.Flags |= allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
     swapchainFlags |= (!vsyncEnabled && allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
     if (false)
-    {    
+    {
         IDXGISwapChain1* swapchain;
         auto bCreated = SUCCEEDED(dxgiInstance->pDXGIFactory->CreateSwapChainForHwnd(NULL,
             hWnd, &chain_desc1, NULL, NULL, &swapchain));

@@ -3,15 +3,12 @@
 #include "framework/object.h"
 #include <string>
 
-class LittleWindow : public LittleObject
+class LittleWindow
 {
 public:
-    LittleWindow(const wchar_t* title);
-    ~LittleWindow() = default;
-
-    virtual bool Initialize();
+    bool Initialize(const wchar_t* title);
     virtual void Run() = 0;
-    virtual bool Destroy();
+    bool Destroy();
 
 protected:
     std::wstring title;
