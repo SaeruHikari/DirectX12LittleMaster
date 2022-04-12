@@ -1,10 +1,13 @@
 #include "gfx/gfx_objects.h"
 #include <vector>
 #include <dxgi1_6.h>
+#include <d3d12.h>
 #include <iostream>
 
 // 链接到dxgi库
 #pragma comment(lib, "dxgi.lib")
+// 链接到d3d12
+#pragma comment(lib, "d3d12.lib")
 
 bool LittleGFXInstance::Initialize(bool enableDebugLayer)
 {
@@ -15,7 +18,7 @@ bool LittleGFXInstance::Initialize(bool enableDebugLayer)
     {
         queryAllAdapters();
         // If the only adapter we found is a software adapter, log error message for QA
-        if (!mDXGIAdapters.size() && foundSoftwareAdapter)
+        if (!adapters.size() && foundSoftwareAdapter)
         {
             assert(0 && "The only available GPU has DXGI_ADAPTER_FLAG_SOFTWARE. Early exiting");
             return false;
@@ -31,9 +34,9 @@ bool LittleGFXInstance::Initialize(bool enableDebugLayer)
 
 bool LittleGFXInstance::Destroy()
 {
-    for (auto iter : mDXGIAdapters)
+    for (auto iter : adapters)
     {
-        SAFE_RELEASE(iter);
+        SAFE_RELEASE(iter.pDXGIAdapter);
     }
     SAFE_RELEASE(pDXGIFactory);
     return true;
@@ -49,22 +52,56 @@ void LittleGFXInstance::queryAllAdapters()
              IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
          i++)
     {
+        LittleGFXAdapter newAdapter;
+        newAdapter.pDXGIAdapter = adapter;
+        newAdapter.instance = this;
         DXGI_ADAPTER_DESC3 desc = {};
         adapter->GetDesc3(&desc);
         std::wcout << desc.Description << std::endl;
         if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
         {
             foundSoftwareAdapter = true;
+            SAFE_RELEASE(adapter);
         }
         else
-            mDXGIAdapters.push_back(adapter);
+        {
+            adapters.emplace_back(newAdapter);
+        }
     }
 }
 
-bool LittleGFXWindow::Initialize(const wchar_t* title, LittleGFXInstance* dxgiInst, bool enableVsync)
+bool LittleGFXDevice::Initialize(LittleGFXAdapter* in_adapter)
+{
+    this->adapter = in_adapter;
+    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_12_0;
+    if (!SUCCEEDED(D3D12CreateDevice(adapter->pDXGIAdapter, // default adapter
+            featureLevel, IID_PPV_ARGS(&pD3D12Device))))
+    {
+        assert(0 && "[D3D12 Fatal]: Create D3D12Device Failed!");
+        return false;
+    }
+    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    if (!SUCCEEDED(pD3D12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&pD3D12Queue))))
+    {
+        assert(0 && "[D3D12 Fatal]: Create D3D12CommandQueue Failed!");
+        return false;
+    }
+    return true;
+}
+
+bool LittleGFXDevice::Destroy()
+{
+    SAFE_RELEASE(pD3D12Queue);
+    SAFE_RELEASE(pD3D12Device);
+    return true;
+}
+
+bool LittleGFXWindow::Initialize(const wchar_t* title, LittleGFXDevice* device, bool enableVsync)
 {
     auto succeed = LittleWindow::Initialize(title);
-    createDXGISwapChain();
+    createDXGISwapChain(device->adapter->instance->pDXGIFactory, device->pD3D12Queue);
     return succeed;
 }
 
@@ -75,7 +112,7 @@ bool LittleGFXWindow::Destroy()
     return succeed;
 }
 
-void LittleGFXWindow::createDXGISwapChain()
+void LittleGFXWindow::createDXGISwapChain(struct IDXGIFactory6* pDXGIFactory, struct ID3D12CommandQueue* present_queue)
 {
     DXGI_SWAP_CHAIN_DESC1 chain_desc1 = { 0 };
     chain_desc1.Width = width;
@@ -96,18 +133,17 @@ void LittleGFXWindow::createDXGISwapChain()
     chain_desc1.Flags |= allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
     swapchainFlags |= (!vsyncEnabled && allowTearing) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
-    if (false)
-    {
-        IDXGISwapChain1* swapchain;
-        auto bCreated = SUCCEEDED(dxgiInstance->pDXGIFactory->CreateSwapChainForHwnd(NULL,
-            hWnd, &chain_desc1, NULL, NULL, &swapchain));
-        assert(bCreated && "Failed to Try to Create SwapChain!");
-
-        auto bAssociation = SUCCEEDED(
-            dxgiInstance->pDXGIFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-        assert(bAssociation && "Failed to Try to Associate SwapChain With Window!");
-
-        auto bQueryChain3 = SUCCEEDED(swapchain->QueryInterface(IID_PPV_ARGS(&pSwapChain)));
-        assert(bQueryChain3 && "Failed to Query IDXGISwapChain3 from Created SwapChain!");
-    }
+    IDXGISwapChain1* swapchain;
+    auto bCreated = SUCCEEDED(pDXGIFactory->CreateSwapChainForHwnd(present_queue,
+        hWnd, &chain_desc1, NULL, NULL, &swapchain));
+    assert(bCreated && "Failed to Try to Create SwapChain!");
+    // 将Swapchain和窗口联系
+    auto bAssociation = SUCCEEDED(
+        pDXGIFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+    assert(bAssociation && "Failed to Try to Associate SwapChain With Window!");
+    // 查询接口等级3的SwapChainInterface，我们要用到其中的特性
+    auto bQueryChain3 = SUCCEEDED(swapchain->QueryInterface(IID_PPV_ARGS(&pSwapChain)));
+    assert(bQueryChain3 && "Failed to Query IDXGISwapChain3 from Created SwapChain!");
+    // 记得释放查询过的旧接口
+    SAFE_RELEASE(swapchain);
 }
