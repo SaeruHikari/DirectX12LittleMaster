@@ -18,4 +18,6 @@ target_include_directories(DirectXLittleMaster PRIVATE ${CMAKE_CURRENT_SOURCE_DI
 # 将目标链接到windows的一些API上
 set(PLATFORM_FRAMEWORKS psapi user32 advapi32 iphlpapi userenv ws2_32)
 target_link_libraries(DirectXLittleMaster PRIVATE ${PLATFORM_FRAMEWORKS})
-# 没了
+# 添加目录结构
+source_group(TREE ${CMAKE_SOURCE_DIR} FILES ${src})
+source_group(TREE ${CMAKE_SOURCE_DIR} FILES ${headers})
